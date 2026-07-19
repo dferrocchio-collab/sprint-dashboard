@@ -308,7 +308,7 @@ td.clickable:hover{text-decoration:underline dotted;}
 
 <script>
 const API_URL = window.DASHBOARD_API_URL || "https://sprint-dashboard-production-0336.up.railway.app/api/sprint";
-const DASHBOARD_KEY = window.DASHBOARD_KEY || "lisa-sprint-2026-mK4vNpX8qL2w";
+const DASHBOARD_KEY = window.DASHBOARD_KEY || "lisa-sprint-2026-xK9mPqR7nW4";
 let RAW = [];
 
 
@@ -361,6 +361,8 @@ async function loadData() {
     const json=await res.json();
     if(json.error) throw new Error(json.error);
     RAW=json.issues||[];
+    if(json.teams){TEAMS=json.teams;NAMED=new Set(Object.values(TEAMS).flat());}
+    if(json.excl_assignees){EXCL_ASSIGNEES=new Set(json.excl_assignees);}
     BASE=RAW.filter(i=>{
       if(EXCL_ASSIGNEES.has(i.assignee)) return false;
       if(['FINALIZADO','ABANDONADO'].includes(i.status)&&(i.resolved_date||'')<SPRINT_START) return false;
@@ -386,9 +388,10 @@ const S_ORDER=["Tareas por hacer","En progreso","Control de calidad","HOLD","Rev
 const S_COLORS={"Tareas por hacer":"#fbbf24","En progreso":"#38bdf8","Control de calidad":"#a78bfa","HOLD":"#6b849e","Revisar":"#34d399","TO RELEASE":"#f472b6","FINALIZADO":"#22c55e","ABANDONADO":"#475569"};
 const BAR_PAL=["#38bdf8","#34d399","#a78bfa","#fbbf24","#f87171","#f472b6","#fb923c","#818cf8","#2dd4bf","#60a5fa"];
 const JIRA="https://lisainsurtech.atlassian.net/browse/";
-const TEAMS={BPEs:["Camilo Arcos","Nicolás Nash","Marie Merle d Aubigne"],CS:["Juan Ignacio Guilá","Antonella Lamberti","Andrea Cardona","Yamil Jaluf","Milton Alejo Caro","Debora Wagner"],Gestión:["Diego Ferrocchio","irina"],QA:["bexi"]};
-const NAMED=new Set(Object.values(TEAMS).flat());
-const EXCL_ASSIGNEES=new Set(["francisco","Rodrigo Randado"]);
+// TEAMS and EXCL_ASSIGNEES loaded from API — not hardcoded here
+let TEAMS={};
+let NAMED=new Set();
+let EXCL_ASSIGNEES=new Set();
 const SPRINT_START='2026-07-06';
 let BASE=[];
 const ALL_PRINCIPALS=[];
