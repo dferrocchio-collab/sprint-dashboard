@@ -24,6 +24,16 @@ JIRA_TOKEN  = os.environ.get("JIRA_API_TOKEN", "")
 API_KEY     = os.environ.get("DASHBOARD_API_KEY", "")
 
 EXCL_ASSIGNEES = {"francisco", "Rodrigo Randado"}
+# Team definitions — returned to frontend so they're not hardcoded in public JS
+TEAMS_CONFIG = {
+    "BPEs":    ["Camilo Arcos", "Nicolas Nash", "Marie Merle d Aubigne"],
+    "CS":      ["Juan Ignacio Guila", "Antonella Lamberti", "Andrea Cardona",
+                 "Yamil Jaluf", "Milton Alejo Caro", "Debora Wagner"],
+    "Gestion": ["Diego Ferrocchio", "irina"],
+    "QA":      ["bexi"],
+}
+EXCL_ASSIGNEES_LIST = ["francisco", "Rodrigo Randado"]
+
 SPRINT_START   = None  # determined dynamically per sprint
 
 FIELDS = ",".join([
@@ -160,6 +170,8 @@ def sprint():
             "sprint_start": sstart,
             "issues":       issues,
             "total":        len(issues),
+            "teams":        TEAMS_CONFIG,
+            "excl_assignees": EXCL_ASSIGNEES_LIST,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
