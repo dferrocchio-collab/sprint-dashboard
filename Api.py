@@ -167,8 +167,8 @@ def fetch_available_sprints():
 
     # Get issues from active and future sprints to extract sprint metadata
     jql = (
-        'project = EJ AND sprint in openSprints() OR '
-        'project = EJ AND sprint in futureSprints() '
+        '(project = EJ AND sprint in openSprints()) OR '
+        '(project = EJ AND sprint in futureSprints()) '
         'ORDER BY created ASC'
     )
     payload = {"jql": jql, "fields": ["customfield_10020"], "maxResults": 50}
