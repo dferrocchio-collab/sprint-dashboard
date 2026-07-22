@@ -160,44 +160,42 @@ def filter_issues(raw_issues, sprint_start):
 
 
 def fetch_available_sprints():
-    """Return active sprint + 2 future sprints ordered by start date."""
+    """Return active sprint + 2 future sprints using Jira Agile board API."""
     auth        = (JIRA_EMAIL, JIRA_TOKEN)
-    url         = f"{JIRA_BASE}/rest/api/3/search/jql"
-    req_headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    headers_get = {"Accept": "application/json"}
 
-    # Get issues from active and future sprints to extract sprint metadata
-    jql = (
-        '(project = EJ AND sprint in openSprints()) OR '
-        '(project = EJ AND sprint in futureSprints()) '
-        'ORDER BY created ASC'
-    )
-    payload = {"jql": jql, "fields": ["customfield_10020"], "maxResults": 50}
-    r = requests.post(url, auth=auth, headers=req_headers, json=payload, timeout=30)
+    # Step 1: find the board for project EJ
+    board_url = f"{JIRA_BASE}/rest/agile/1.0/board"
+    r = requests.get(board_url, auth=auth, headers=headers_get,
+                     params={"projectKeyOrId": "EJ", "type": "scrum"}, timeout=15)
     r.raise_for_status()
+    boards = r.json().get("values", [])
+    if not boards:
+        return []
+    board_id = boards[0]["id"]
 
-    seen, sprints = set(), []
-    for issue in r.json().get("issues", []):
-        for s in (issue["fields"].get("customfield_10020") or []):
-            sid = s.get("id")
-            if sid in seen:
-                continue
-            seen.add(sid)
-            state = s.get("state", "")
-            if state in ("active", "future"):
-                sprints.append({
-                    "id":         sid,
-                    "name":       s.get("name", ""),
-                    "state":      state,
-                    "start_date": (s.get("startDate") or "")[:10],
-                    "end_date":   (s.get("endDate") or "")[:10],
-                })
+    # Step 2: get active and future sprints from that board
+    sprint_url = f"{JIRA_BASE}/rest/agile/1.0/board/{board_id}/sprint"
+    sprints = []
+    for state in ("active", "future"):
+        r = requests.get(sprint_url, auth=auth, headers=headers_get,
+                         params={"state": state}, timeout=15)
+        if r.status_code != 200:
+            continue
+        for s in r.json().get("values", []):
+            sprints.append({
+                "id":         str(s.get("id", "")),
+                "name":       s.get("name", ""),
+                "state":      state,
+                "start_date": (s.get("startDate") or "")[:10],
+                "end_date":   (s.get("endDate") or "")[:10],
+            })
 
-    # Sort by start_date, separate active and future
     active  = [s for s in sprints if s["state"] == "active"]
     futures = sorted([s for s in sprints if s["state"] == "future"],
                      key=lambda x: x["start_date"])
 
-    return (active + futures[:2])  # active + 2 next futures
+    return active + futures[:2]
 
 
 def build_jql_for_sprint(sprint_name, is_future=False):
