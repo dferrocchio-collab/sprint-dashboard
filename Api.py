@@ -167,7 +167,7 @@ def fetch_available_sprints():
     # Step 1: find the board for project EJ
     board_url = f"{JIRA_BASE}/rest/agile/1.0/board"
     r = requests.get(board_url, auth=auth, headers=headers_get,
-                     params={"projectKeyOrId": "EJ", "type": "scrum"}, timeout=15)
+                     params={"projectKeyOrId": "EJ"}, timeout=15)
     r.raise_for_status()
     boards = r.json().get("values", [])
     if not boards:
