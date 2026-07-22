@@ -192,7 +192,7 @@ def fetch_available_sprints():
             })
 
     active  = [s for s in sprints if s["state"] == "active"]
-    futures = sorted([s for s in sprints if s["state"] == "future"],
+    futures = sorted([s for s in sprints if s["state"] == "future" and s["start_date"]],
                      key=lambda x: x["start_date"])
 
     return active + futures[:2]
