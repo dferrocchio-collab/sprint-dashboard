@@ -47,6 +47,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',system-ui,sans-ser
 .cb-label{flex:1;font-size:11.5px;color:var(--tx-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .cb-item.on .cb-label{color:var(--tx);}
 .cb-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx-dim);}
+.sprint-pill{background:none;border:1px solid var(--bord2);color:var(--tx-dim);font-size:11.5px;font-weight:600;padding:3px 12px;border-radius:20px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.sprint-pill:hover{color:var(--tx);border-color:var(--cyan-dim);}
+.sprint-pill.active{background:var(--cyan-dim);border-color:#1e4d6b;color:var(--cyan);}
+.sprint-pill.future{border-style:dashed;}
 .top-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--tx-dim);font-size:13px;font-weight:600;padding:0 14px;height:50px;cursor:pointer;font-family:inherit;transition:color .15s;}
 .top-tab:hover{color:var(--tx);}
 .top-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
@@ -307,7 +311,9 @@ td.clickable:hover{text-decoration:underline dotted;}
 <div id="tt" style="display:none;position:fixed;z-index:9999;background:#1a2a3a;border:1px solid #243447;color:#dde6f0;font-size:11.5px;padding:6px 10px;border-radius:6px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.5);max-width:260px;line-height:1.5;font-family:'Inter',sans-serif;"></div>
 
 <script>
-const API_URL = window.DASHBOARD_API_URL || "https://sprint-dashboard-production-0336.up.railway.app/api/sprint";
+const API_URL      = window.DASHBOARD_API_URL || "https://sprint-dashboard-production-0336.up.railway.app/api/sprint";
+const SPRINTS_URL  = API_URL.replace('/api/sprint', '/api/sprints');
+let activeSprint   = null; // set after loading available sprints
 const DASHBOARD_KEY = window.DASHBOARD_KEY || "lisa-sprint-2026-mK4vNpX8qL2w";
 let RAW = [];
 
@@ -328,12 +334,61 @@ function handleGoogleLogin(response) {
   }
   googleToken = response.credential;
   document.getElementById("login-screen").style.display = "none";
+  loadSprints();
   loadData().then(() => { buildSidebar(); render(); loadHours('1m'); });
 }
 
 function parseJwt(token) {
   const base64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
   return JSON.parse(atob(base64));
+}
+
+
+// ── SPRINT SELECTOR ──────────────────────────────────────────────
+let availableSprints = [];
+
+async function loadSprints() {
+  try {
+    const hdr = {};
+    if (DASHBOARD_KEY) hdr['X-API-Key'] = DASHBOARD_KEY;
+    const res  = await fetchWithRetry(SPRINTS_URL, {headers: hdr}, 3, 2000);
+    if (!res.ok) return;
+    const json = await res.json();
+    availableSprints = json.sprints || [];
+    renderSprintPills();
+  } catch(e) {
+    console.warn('Could not load sprints:', e);
+  }
+}
+
+function renderSprintPills() {
+  const container = document.getElementById('sprint-pills');
+  if (!container || !availableSprints.length) return;
+  container.innerHTML = availableSprints.map(s => {
+    const isActive = s.state === 'active';
+    const isCurrent = activeSprint === s.name || (!activeSprint && isActive);
+    const label = s.name + (isActive ? ' ●' : '');
+    return '<button class="sprint-pill' + (isCurrent ? ' active' : '') + (s.state === 'future' ? ' future' : '') + '" data-sprint="' + s.name + '" data-state="' + s.state + '">' + label + '</button>';
+  }).join('');
+
+  container.querySelectorAll('.sprint-pill').forEach(btn => {
+    btn.addEventListener('click', () => switchSprint(btn.dataset.sprint, btn.dataset.state));
+  });
+}
+
+async function switchSprint(sprintName, state) {
+  activeSprint = sprintName;
+  // Update pill UI
+  document.querySelectorAll('.sprint-pill').forEach(b => {
+    b.classList.toggle('active', b.dataset.sprint === sprintName);
+  });
+  // Update topbar meta
+  const meta = document.getElementById('topbar-meta');
+  if (meta) meta.textContent = sprintName + ' · EJ';
+  // Reload data for selected sprint
+  await loadData(sprintName);
+  buildSidebar();
+  render();
 }
 
 // ── FETCH WITH RETRY ─────────────────────────────────────────────
@@ -349,14 +404,15 @@ async function fetchWithRetry(url, options={}, retries=3, delayMs=2000) {
   }
 }
 
-async function loadData() {
+async function loadData(sprintName) {
   const loader=document.getElementById("loader"),main=document.querySelector(".main");
   if(loader){ loader.style.display="flex"; loader.querySelector("div:last-child").textContent="Conectando con Jira... (puede tardar unos segundos)"; }
   if(main) main.style.opacity="0.3";
   try {
     const headers={};
     if(DASHBOARD_KEY) headers["X-API-Key"]=DASHBOARD_KEY;
-    const res=await fetchWithRetry(API_URL,{headers},3,2000);
+    const url = sprintName ? API_URL + "?sprint=" + encodeURIComponent(sprintName) : API_URL;
+    const res=await fetchWithRetry(url,{headers},3,2000);
     if(!res.ok) throw new Error("HTTP "+res.status);
     const json=await res.json();
     if(json.error) throw new Error(json.error);
@@ -576,8 +632,10 @@ function renderBurndown(data){
   const todayStr=new Date().toISOString().slice(0,10);
   let todayIdx=days.indexOf(todayStr);
   if(todayIdx<0){const past=days.filter(d=>d<=todayStr);todayIdx=past.length>0?days.indexOf(past[past.length-1]):-1;}
+  const isFutureSprint = availableSprints.length > 0 &&
+    availableSprints.find(s => s.name === activeSprint)?.state === 'future';
   const bdActual=days.map(()=>null);
-  if(todayIdx>=0){bdActual[0]=initialScope;bdActual[todayIdx]=bdRemain;}
+  if(todayIdx>=0 && !isFutureSprint){bdActual[0]=initialScope;bdActual[todayIdx]=bdRemain;}
 
   // Canvas
   const dpr=window.devicePixelRatio||1,W=canvas.offsetWidth||800,H=210;
@@ -1053,9 +1111,9 @@ async function openTrendModal(project, currentHrs) {
   }
 }
 
-document.getElementById('trend-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('trend-overlay'))
-    document.getElementById('trend-overlay').style.display = 'none';
+const _to = document.getElementById('trend-overlay');
+if (_to) _to.addEventListener('click', e => {
+  if (e.target === _to) _to.style.display = 'none';
 });
 
 function drawTrend(canvas, labels, values, title) {
