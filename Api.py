@@ -158,19 +158,157 @@ def filter_issues(raw_issues, sprint_start):
     return result
 
 
+
+def fetch_available_sprints():
+    """Return active sprint + 2 future sprints ordered by start date."""
+    auth        = (JIRA_EMAIL, JIRA_TOKEN)
+    url         = f"{JIRA_BASE}/rest/api/3/search/jql"
+    req_headers = {"Accept": "application/json", "Content-Type": "application/json"}
+
+    # Get issues from active and future sprints to extract sprint metadata
+    jql = (
+        'project = EJ AND sprint in openSprints() OR '
+        'project = EJ AND sprint in futureSprints() '
+        'ORDER BY created ASC'
+    )
+    payload = {"jql": jql, "fields": ["customfield_10020"], "maxResults": 50}
+    r = requests.post(url, auth=auth, headers=req_headers, json=payload, timeout=30)
+    r.raise_for_status()
+
+    seen, sprints = set(), []
+    for issue in r.json().get("issues", []):
+        for s in (issue["fields"].get("customfield_10020") or []):
+            sid = s.get("id")
+            if sid in seen:
+                continue
+            seen.add(sid)
+            state = s.get("state", "")
+            if state in ("active", "future"):
+                sprints.append({
+                    "id":         sid,
+                    "name":       s.get("name", ""),
+                    "state":      state,
+                    "start_date": (s.get("startDate") or "")[:10],
+                    "end_date":   (s.get("endDate") or "")[:10],
+                })
+
+    # Sort by start_date, separate active and future
+    active  = [s for s in sprints if s["state"] == "active"]
+    futures = sorted([s for s in sprints if s["state"] == "future"],
+                     key=lambda x: x["start_date"])
+
+    return (active + futures[:2])  # active + 2 next futures
+
+
+def build_jql_for_sprint(sprint_name, is_future=False):
+    """Build JQL for a specific sprint."""
+    base = (
+        f'project = EJ '
+        f'AND sprint = "{sprint_name}" '
+        f'AND issuetype NOT IN (Epic, Subtarea) '
+    )
+    if is_future:
+        # Future: exclude FINALIZADO and ABANDONADO (no "arrastrados" logic)
+        base += 'AND status NOT IN ("FINALIZADO", "ABANDONADO") '
+    base += 'ORDER BY created ASC'
+    return base
+
+
+def fetch_issues_for_sprint(sprint_name):
+    """Fetch all issues for a specific sprint."""
+    auth        = (JIRA_EMAIL, JIRA_TOKEN)
+    url         = f"{JIRA_BASE}/rest/api/3/search/jql"
+    req_headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    issues      = []
+    next_token  = None
+
+    # We don't know if future yet — fetch all and filter after
+    jql = (
+        f'project = EJ AND sprint = "{sprint_name}" ' 
+        f'AND issuetype NOT IN (Epic, Subtarea) ORDER BY created ASC'
+    )
+
+    while True:
+        payload = {
+            "jql":        jql,
+            "fields":     FIELDS.split(","),
+            "maxResults": 100,
+        }
+        if next_token:
+            payload["nextPageToken"] = next_token
+
+        r = requests.post(url, auth=auth, headers=req_headers, json=payload, timeout=30)
+        r.raise_for_status()
+        data  = r.json()
+        batch = data.get("issues", [])
+        issues.extend(batch)
+        next_token = data.get("nextPageToken")
+        if not next_token or not batch:
+            break
+
+    return issues
+
+@app.route("/api/sprints")
+def sprints_list():
+    """Return available sprints: active + 2 future."""
+    if API_KEY and request.headers.get("X-API-Key") != API_KEY:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        available = fetch_available_sprints()
+        return jsonify({"sprints": available})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/sprint")
 def sprint():
     if API_KEY and request.headers.get("X-API-Key") != API_KEY:
         return jsonify({"error": "Unauthorized"}), 401
     try:
-        raw    = fetch_all_issues()
-        sstart = get_sprint_start(raw)
-        issues = filter_issues(raw, sstart)
+        sprint_name = request.args.get("sprint")  # e.g. ?sprint=Sprint+13
+
+        if sprint_name:
+            # Specific sprint requested — detect if future
+            available = fetch_available_sprints()
+            sprint_meta = next((s for s in available if s["name"] == sprint_name), None)
+            is_future = sprint_meta["state"] == "future" if sprint_meta else False
+            sprint_start = sprint_meta["start_date"] if sprint_meta else ""
+
+            raw = fetch_issues_for_sprint(sprint_name)
+
+            if is_future:
+                # Future: all non-FINALIZADO/ABANDONADO, no carried-over exclusion
+                issues = []
+                for issue in raw:
+                    item, parent_type, principal, assignee = transform(issue, sprint_start)
+                    if parent_type and parent_type != "Epic": continue
+                    if principal.startswith("OPSADMON"): continue
+                    if assignee in EXCL_ASSIGNEES: continue
+                    if item["status"] in ("FINALIZADO", "ABANDONADO"): continue
+                    del item["parent_type"]
+                    issues.append(item)
+            else:
+                # Active or closed — use standard filter
+                sstart = sprint_start or get_sprint_start(raw)
+                issues = filter_issues(raw, sstart)
+                sprint_start = sstart
+        else:
+            # Default: active sprint
+            raw    = fetch_all_issues()
+            sprint_start = get_sprint_start(raw)
+            issues = filter_issues(raw, sprint_start)
+            sprint_name = next(
+                (s["name"] for issue in raw
+                 for s in (issue["fields"].get("customfield_10020") or [])
+                 if s.get("state") == "active"), "Sprint activo"
+            )
+
         return jsonify({
-            "sprint_start": sstart,
-            "issues":       issues,
-            "total":        len(issues),
-            "teams":        TEAMS_CONFIG,
+            "sprint_start":   sprint_start,
+            "sprint_name":    sprint_name,
+            "issues":         issues,
+            "total":          len(issues),
+            "teams":          TEAMS_CONFIG,
             "excl_assignees": EXCL_ASSIGNEES_LIST,
         })
     except Exception as e:
