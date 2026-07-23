@@ -418,6 +418,7 @@ async function loadData(sprintName) {
     const json=await res.json();
     if(json.error) throw new Error(json.error);
     RAW=json.issues||[];
+    if(json.sprint_start) SPRINT_START=json.sprint_start;
     if(json.teams){TEAMS=json.teams;NAMED=new Set(Object.values(TEAMS).flat());}
     if(json.excl_assignees){EXCL_ASSIGNEES=new Set(json.excl_assignees);}
     BASE=RAW.filter(i=>{
@@ -449,7 +450,7 @@ const JIRA="https://lisainsurtech.atlassian.net/browse/";
 let TEAMS={};
 let NAMED=new Set();
 let EXCL_ASSIGNEES=new Set();
-const SPRINT_START='2026-07-06';
+let SPRINT_START='2026-07-06'; // updated dynamically from API
 let BASE=[];
 const ALL_PRINCIPALS=[];
 let selP=new Set(),team="all",ddData=[],ddQ="";
