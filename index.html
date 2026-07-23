@@ -419,6 +419,15 @@ async function loadData(sprintName) {
     if(json.error) throw new Error(json.error);
     RAW=json.issues||[];
     if(json.sprint_start) SPRINT_START=json.sprint_start;
+    if(json.sprint_start && json.sprint_end) {
+      // Rebuild BD.days (working days) for the selected sprint
+      const wdays=[];
+      let d=new Date(json.sprint_start+'T00:00:00');
+      const end=new Date(json.sprint_end+'T00:00:00');
+      while(d<=end){if(d.getDay()>0&&d.getDay()<6)wdays.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+      BD.days=wdays;
+      BD.total=json.total||0;
+    }
     if(json.teams){TEAMS=json.teams;NAMED=new Set(Object.values(TEAMS).flat());}
     if(json.excl_assignees){EXCL_ASSIGNEES=new Set(json.excl_assignees);}
     BASE=RAW.filter(i=>{
