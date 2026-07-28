@@ -39,17 +39,17 @@ JQL = (
 EXCL_ASSIGNEES = {"francisco", "Rodrigo Randado"}
 
 TEAMS_CONFIG = {
-    "BPEs":    ["Camilo Arcos", "Nicolas Nash", "Marie Merle d Aubigne"],
-    "CS":      ["Juan Ignacio Guila", "Antonella Lamberti", "Andrea Cardona",
+    "BPEs":    ["Camilo Arcos", "Nicolás Nash", "Marie Merle d Aubigne"],
+    "CS":      ["Juan Ignacio Guilá", "Antonella Lamberti", "Andrea Cardona",
                  "Yamil Jaluf", "Milton Alejo Caro", "Debora Wagner"],
-    "Gestion": ["Diego Ferrocchio", "irina"],
+    "Gestión": ["Diego Ferrocchio", "irina"],
     "QA":      ["bexi"],
 }
 EXCL_ASSIGNEES_LIST = ["francisco", "Rodrigo Randado"]
 
 TEAM_MEMBERS = [
-    "Camilo Arcos", "Nicolas Nash", "Marie Merle d Aubigne",
-    "Juan Ignacio Guila", "Antonella Lamberti", "Andrea Cardona",
+    "Camilo Arcos", "Nicolás Nash", "Marie Merle d Aubigne",
+    "Juan Ignacio Guilá", "Antonella Lamberti", "Andrea Cardona",
     "Yamil Jaluf", "Milton Alejo Caro", "Debora Wagner",
     "Diego Ferrocchio", "irina", "bexi",
     "Alejandro Aparicio Guerra", "Kenny Ortega", "Tonatiu Serrano",
