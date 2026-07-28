@@ -611,7 +611,7 @@ function renderPriorityMatrix(data){
   table.addEventListener("click",e=>{const cell=e.target.closest("td[data-total-prio]");if(!cell)return;const p=cell.dataset.totalPrio;if(p==="all")openDD(data,"Todos los issues");else openDD(data.filter(i=>i.priority===p),p);},{capture:true});
 }
 
-function render(){const data=getData();renderKPIs(data);renderPie(data);renderBars(data);renderMatrix(data);renderPriorityMatrix(data);renderBurndown(data);}
+function render(){const data=getData();renderKPIs(data);renderPie(data);renderBars(data);renderMatrix(data);renderPriorityMatrix(data);requestAnimationFrame(()=>renderBurndown(data));}
 
 // ── BURNDOWN con scope creep ──────────────────────────────────────
 const BD={"days":["2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17"],"ideal":[125.0,111.1,97.2,83.3,69.4,55.6,41.7,27.8,13.9,0.0],"actual":[111,null,null,null,null,null,null,null,null,null],"total":125,"sprint_name":"Sprint 11"};
@@ -649,9 +649,10 @@ function renderBurndown(data){
   if(todayIdx>=0 && !isFutureSprint){bdActual[0]=initialScope;bdActual[todayIdx]=bdRemain;}
 
   // Canvas
-  const dpr=window.devicePixelRatio||1,W=canvas.offsetWidth||800,H=210;
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement?.clientWidth||canvas.offsetWidth||800,H=210;
   canvas.width=W*dpr;canvas.height=H*dpr;
-  canvas.style.width=W+"px";canvas.style.height=H+"px";
+  canvas.style.height=H+"px"; // keep width:100% CSS intact
   const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);
   const pad={l:36,r:10,t:28,b:36},cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
   const maxY=Math.max(bdTotal,initialScope)*1.08||1;
