@@ -30,7 +30,7 @@ FIELDS = ",".join([
 ])
 
 JQL = (
-    'project = EJ '
+    'project = LISA '
     'AND sprint in openSprints() '
     'AND issuetype NOT IN (Epic, Subtarea) '
     'ORDER BY created ASC'
@@ -67,7 +67,7 @@ def fetch_available_sprints():
     r = requests.get(
         f"{JIRA_BASE}/rest/agile/1.0/board",
         auth=auth, headers=headers_get,
-        params={"projectKeyOrId": "EJ"}, timeout=15
+        params={"projectKeyOrId": "LISA"}, timeout=15
     )
     r.raise_for_status()
     boards = r.json().get("values", [])
@@ -124,7 +124,7 @@ def fetch_issues_for_sprint(sprint_name):
     url         = f"{JIRA_BASE}/rest/api/3/search/jql"
     req_headers = {"Accept": "application/json", "Content-Type": "application/json"}
     jql = (
-        f'project = EJ AND sprint = "{sprint_name}" '
+        f'project = LISA AND sprint = "{sprint_name}" '
         f'AND issuetype NOT IN (Epic, Subtarea) ORDER BY created ASC'
     )
     issues, next_token = [], None
@@ -359,7 +359,7 @@ def fetch_worklogs_bulk(date_from, date_to):
 
     url         = f"{JIRA_BASE}/rest/api/3/search/jql"
     req_headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    jql         = f'project = EJ AND issue in ({",".join(issue_keys)})'
+    jql         = f'project = LISA AND issue in ({",".join(issue_keys)})'
     issue_map, next_token = {}, None
     while True:
         payload = {"jql": jql, "fields": ["parent", "issuetype"], "maxResults": 100}
