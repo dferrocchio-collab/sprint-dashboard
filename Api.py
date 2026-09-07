@@ -218,7 +218,7 @@ def filter_issues(raw_issues, sprint_start):
             continue
         if assignee in EXCL_ASSIGNEES:
             continue
-        if item["status"] in ("FINALIZADO", "ABANDONADO"):
+        if item["status"] in ("Finalizado", "Abandonado"):
             rd = item.get("resolved_date") or ""
             if rd < sprint_start:
                 continue
@@ -250,7 +250,7 @@ def sprint():
             jql_bl = (
                 'project = LISA AND sprint is EMPTY '
                 'AND issuetype NOT IN (Epic, Subtarea) '
-                'AND status NOT IN ("FINALIZADO", "ABANDONADO") '
+                'AND status NOT IN ("Finalizado", "Abandonado") '
                 'ORDER BY created ASC'
             )
             auth        = (JIRA_EMAIL, JIRA_TOKEN)
@@ -303,7 +303,7 @@ def sprint():
                     if parent_type and parent_type != "Epic": continue
                     if principal.startswith("OPSADMON"): continue
                     if assignee in EXCL_ASSIGNEES: continue
-                    if item["status"] in ("FINALIZADO", "ABANDONADO"): continue
+                    if item["status"] in ("Finalizado", "Abandonado"): continue
                     del item["parent_type"]
                     issues.append(item)
             else:
