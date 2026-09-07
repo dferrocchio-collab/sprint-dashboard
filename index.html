@@ -187,6 +187,7 @@ td.clickable:hover{text-decoration:underline dotted;}
     </div>
     <div class="kpis" id="kpis"></div>
 
+    <div id="burndown-section">
     <div class="sh"><h2>Burndown chart</h2><span class="sh-n" id="sh-burndown">Sprint 11 . 10 días hábiles</span></div>
     <div class="panel" style="margin-bottom:13px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -200,6 +201,7 @@ td.clickable:hover{text-decoration:underline dotted;}
       </div>
       <canvas id="burndown" height="210" style="width:100%;display:block;"></canvas>
     </div>
+    </div><!-- /burndown-section -->
 
     <div class="sh"><h2>Progreso por estado</h2><span class="sh-n" id="sh-status"></span></div>
     <div class="g2">
@@ -365,12 +367,15 @@ async function loadSprints() {
 function renderSprintPills() {
   const container = document.getElementById('sprint-pills');
   if (!container || !availableSprints.length) return;
-  container.innerHTML = availableSprints.map(s => {
-    const isActive = s.state === 'active';
+  const sprintPills = availableSprints.map(s => {
+    const isActive  = s.state === 'active';
     const isCurrent = activeSprint === s.name || (!activeSprint && isActive);
     const label = s.name + (isActive ? ' ●' : '');
     return '<button class="sprint-pill' + (isCurrent ? ' active' : '') + (s.state === 'future' ? ' future' : '') + '" data-sprint="' + s.name + '" data-state="' + s.state + '">' + label + '</button>';
-  }).join('');
+  });
+  const backlogActive = activeSprint === 'Backlog';
+  sprintPills.push('<button class="sprint-pill' + (backlogActive ? ' active' : '') + ' future" data-sprint="Backlog" data-state="backlog">Backlog</button>');
+  container.innerHTML = sprintPills.join('');
 
   container.querySelectorAll('.sprint-pill').forEach(btn => {
     btn.addEventListener('click', () => switchSprint(btn.dataset.sprint, btn.dataset.state));
@@ -379,6 +384,9 @@ function renderSprintPills() {
 
 async function switchSprint(sprintName, state) {
   activeSprint = sprintName;
+  // Show/hide burndown for backlog
+  const bdSection = document.getElementById('burndown-section');
+  if (bdSection) bdSection.style.display = sprintName === 'Backlog' ? 'none' : '';
   // Update pill UI
   document.querySelectorAll('.sprint-pill').forEach(b => {
     b.classList.toggle('active', b.dataset.sprint === sprintName);
@@ -645,8 +653,9 @@ function renderBurndown(data){
   if(todayIdx<0){const past=days.filter(d=>d<=todayStr);todayIdx=past.length>0?days.indexOf(past[past.length-1]):-1;}
   const isFutureSprint = availableSprints.length > 0 &&
     availableSprints.find(s => s.name === activeSprint)?.state === 'future';
+  const isBacklog = activeSprint === 'Backlog';
   const bdActual=days.map(()=>null);
-  if(todayIdx>=0 && !isFutureSprint){bdActual[0]=initialScope;bdActual[todayIdx]=bdRemain;}
+  if(todayIdx>=0 && !isFutureSprint && !isBacklog){bdActual[0]=initialScope;bdActual[todayIdx]=bdRemain;}
 
   // Canvas
   const dpr=window.devicePixelRatio||1;
