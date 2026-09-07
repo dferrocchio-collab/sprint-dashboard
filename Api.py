@@ -49,7 +49,7 @@ EXCL_ASSIGNEES_LIST = ["francisco", "Rodrigo Randado"]
 
 TEAM_MEMBERS = [
     "Camilo Arcos", "Nicolás Nash", "Marie Merle d Aubigne",
-    "Juan Ignacio Guilá", "Antonella Lamberti", "Andrea Cardona",
+    "Juan Ignacio Guilá", "Antonella Lamberti", "Antonella Lamberti Mattei", "Andrea Cardona",
     "Yamil Jaluf", "Milton Alejo Caro", "Debora Wagner",
     "Diego Ferrocchio", "irina", "bexi",
     "Alejandro Aparicio Guerra", "Kenny Ortega", "Tonatiu Serrano",
@@ -242,7 +242,50 @@ def sprint():
     try:
         sprint_name = request.args.get("sprint")
 
-        if sprint_name:
+        if sprint_name == "Backlog":
+            # Backlog: issues with no sprint assigned, all active statuses
+            jql_bl = (
+                'project = LISA AND sprint is EMPTY '
+                'AND issuetype NOT IN (Epic, Subtarea) '
+                'AND status NOT IN ("FINALIZADO", "ABANDONADO") '
+                'ORDER BY created ASC'
+            )
+            auth        = (JIRA_EMAIL, JIRA_TOKEN)
+            url         = f"{JIRA_BASE}/rest/api/3/search/jql"
+            req_headers = {"Accept": "application/json", "Content-Type": "application/json"}
+            issues, next_token = [], None
+            while True:
+                payload = {"jql": jql_bl, "fields": FIELDS.split(","), "maxResults": 100}
+                if next_token:
+                    payload["nextPageToken"] = next_token
+                r = requests.post(url, auth=auth, headers=req_headers, json=payload, timeout=30)
+                r.raise_for_status()
+                data  = r.json()
+                batch = data.get("issues", [])
+                issues.extend(batch)
+                next_token = data.get("nextPageToken")
+                if not next_token or not batch:
+                    break
+            # Transform and filter
+            result = []
+            for issue in issues:
+                item, parent_type, principal, assignee = transform(issue, "")
+                if parent_type and parent_type != "Epic": continue
+                if principal.startswith("OPSADMON"): continue
+                if assignee in EXCL_ASSIGNEES: continue
+                del item["parent_type"]
+                result.append(item)
+            return jsonify({
+                "sprint_start":   "",
+                "sprint_end":     "",
+                "sprint_name":    "Backlog",
+                "issues":         result,
+                "total":          len(result),
+                "teams":          TEAMS_CONFIG,
+                "excl_assignees": EXCL_ASSIGNEES_LIST,
+            })
+
+        elif sprint_name:
             available    = fetch_available_sprints()
             sprint_meta  = next((s for s in available if s["name"] == sprint_name), None)
             is_future    = sprint_meta["state"] == "future" if sprint_meta else False
