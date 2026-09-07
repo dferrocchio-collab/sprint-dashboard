@@ -92,10 +92,13 @@ def fetch_available_sprints():
             })
 
     active  = [s for s in sprints if s["state"] == "active"]
+    EXCLUDED_SPRINTS = {"Carga de horas"}
     futures = sorted(
-        [s for s in sprints if s["state"] == "future" and s["start_date"]],
+        [s for s in sprints if s["state"] == "future" and s["start_date"]
+         and s["name"] not in EXCLUDED_SPRINTS],
         key=lambda x: x["start_date"]
     )
+    active = [s for s in active if s["name"] not in EXCLUDED_SPRINTS]
     return active + futures[:2]
 
 
