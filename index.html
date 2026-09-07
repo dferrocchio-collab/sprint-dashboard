@@ -459,8 +459,8 @@ async function loadData(sprintName) {
   }
 }
 
-const S_ORDER=["Tareas por hacer","En progreso","Control de calidad","HOLD","Revisar","TO RELEASE","FINALIZADO","ABANDONADO"];
-const S_COLORS={"Tareas por hacer":"#fbbf24","En progreso":"#38bdf8","Control de calidad":"#a78bfa","HOLD":"#6b849e","Revisar":"#34d399","TO RELEASE":"#f472b6","FINALIZADO":"#22c55e","ABANDONADO":"#475569"};
+const S_ORDER=["Tareas por hacer","En progreso","Control de calidad","Ready for QA","HOLD","Revisar","To Release","Finalizado","Abandonado"];
+const S_COLORS={"Tareas por hacer":"#fbbf24","En progreso":"#38bdf8","Control de calidad":"#a78bfa","Ready for QA":"#818cf8","HOLD":"#6b849e","Revisar":"#34d399","To Release":"#f472b6","Finalizado":"#22c55e","Abandonado":"#475569"};
 const BAR_PAL=["#38bdf8","#34d399","#a78bfa","#fbbf24","#f87171","#f472b6","#fb923c","#818cf8","#2dd4bf","#60a5fa"];
 const JIRA="https://lisainsurtech.atlassian.net/browse/";
 // TEAMS and EXCL_ASSIGNEES loaded from API — not hardcoded here
@@ -537,8 +537,8 @@ function renderKPIs(data){
   const techEl=document.getElementById("tc-Tech");if(techEl)techEl.textContent=teamBase.filter(i=>i.assignee!=="Sin asignar"&&!NAMED.has(i.assignee)).length;
   const todo=data.filter(i=>i.status==="Tareas por hacer").length;
   const hold=data.filter(i=>i.status==="HOLD").length;
-  const inprog=data.filter(i=>["En progreso","Control de calidad","Revisar","TO RELEASE"].includes(i.status)).length;
-  const done=data.filter(i=>["FINALIZADO","ABANDONADO"].includes(i.status)&&(i.resolved_date||"")>=SPRINT_START).length;
+  const inprog=data.filter(i=>["En progreso","Control de calidad","Revisar","To Release"].includes(i.status)).length;
+  const done=data.filter(i=>["Finalizado","Abandonado"].includes(i.status)&&(i.resolved_date||"")>=SPRINT_START).length;
   const pct=data.length?Math.round(done/data.length*100):0;
   const scopeAdded=data.filter(i=>i.created&&i.created>SPRINT_START).length;
   const initialScope=data.length-scopeAdded;
@@ -557,9 +557,9 @@ function renderKPIs(data){
       const lbl=card.querySelector(".l").textContent;
       let sub;
       if(f==="all")sub=data;
-      else if(f==="done")sub=data.filter(i=>["FINALIZADO","ABANDONADO"].includes(i.status)&&(i.resolved_date||"")>=SPRINT_START);
+      else if(f==="done")sub=data.filter(i=>["Finalizado","Abandonado"].includes(i.status)&&(i.resolved_date||"")>=SPRINT_START);
       else if(f==="todo")sub=data.filter(i=>i.status==="Tareas por hacer");
-      else if(f==="prog")sub=data.filter(i=>["En progreso","Control de calidad","Revisar","TO RELEASE"].includes(i.status));
+      else if(f==="prog")sub=data.filter(i=>["En progreso","Control de calidad","Revisar","To Release"].includes(i.status));
       else if(f==="hold")sub=data.filter(i=>i.status==="HOLD");
       else if(f==="scope")sub=data.filter(i=>i.created&&i.created>SPRINT_START);
       else if(f==="scope")sub=data.filter(i=>i.created&&i.created>SPRINT_START);
@@ -591,7 +591,7 @@ function renderPie(data){
 function renderBars(data){
   const counts=cnt(data,"assignee"),sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]),max=sorted[0]?.[1]||1;
   document.getElementById("bars").innerHTML=sorted.map(([name,n],i)=>`<div class="bar-row" data-who="${name}"><div class="bar-name" title="${name}">${short(name)}</div><div class="bar-track"><div class="bar-fill" style="width:${(n/max*100).toFixed(0)}%;background:${name==="Sin asignar"?"#4b5563":BAR_PAL[i%BAR_PAL.length]};"></div></div><div class="bar-n">${n}</div></div>`).join("");
-  document.getElementById("bars").querySelectorAll(".bar-row").forEach(row=>{row.addEventListener("click",()=>{const who=row.dataset.who;openDD(data.filter(i=>i.assignee===who),short(who));});row.addEventListener("mouseenter",e=>{const who=row.dataset.who,n=data.filter(i=>i.assignee===who).length,done=data.filter(i=>i.assignee===who&&["FINALIZADO","ABANDONADO"].includes(i.status)).length;showTT(e,"<b>"+short(who)+"</b><br>"+n+" tickets<br>Completados: "+done);});row.addEventListener("mousemove",moveTT);row.addEventListener("mouseleave",hideTT);});
+  document.getElementById("bars").querySelectorAll(".bar-row").forEach(row=>{row.addEventListener("click",()=>{const who=row.dataset.who;openDD(data.filter(i=>i.assignee===who),short(who));});row.addEventListener("mouseenter",e=>{const who=row.dataset.who,n=data.filter(i=>i.assignee===who).length,done=data.filter(i=>i.assignee===who&&["Finalizado","Abandonado"].includes(i.status)).length;showTT(e,"<b>"+short(who)+"</b><br>"+n+" tickets<br>Completados: "+done);});row.addEventListener("mousemove",moveTT);row.addEventListener("mouseleave",hideTT);});
 }
 
 function renderMatrix(data){
@@ -644,7 +644,7 @@ function renderBurndown(data){
 
   // Burndown
   const bdTotal=data.length;
-  const bdDone=data.filter(i=>["FINALIZADO","ABANDONADO"].includes(i.status)&&(i.resolved_date||"")>=SPRINT_START).length;
+  const bdDone=data.filter(i=>["Finalizado","Abandonado"].includes(i.status)&&(i.resolved_date||"")>=SPRINT_START).length;
   const bdRemain=bdTotal-bdDone;
   const bdIdeal=days.map((_,i)=>Math.round(initialScope-(initialScope/(nDays-1))*i));
 
