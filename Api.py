@@ -39,7 +39,7 @@ JQL = (
 EXCL_ASSIGNEES = {"francisco", "Rodrigo Randado"}
 
 TEAMS_CONFIG = {
-    "BPEs":    ["Camilo Arcos", "Nicolás Nash", "Marie Merle d Aubigne"],
+    "BPEs":    ["Camilo Arcos", "Nicolás Nash", "Marie Merle d Aubigne", "Benjamin Aseretto"],
     "CS":      ["Juan Ignacio Guilá", "Antonella Lamberti", "Antonella Lamberti Mattei", "Andrea Cardona",
                  "Yamil Jaluf", "Milton Alejo Caro", "Debora Wagner"],
     "Gestión": ["Diego Ferrocchio", "irina"],
