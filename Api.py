@@ -246,38 +246,52 @@ def sprint():
         sprint_name = request.args.get("sprint")
 
         if sprint_name == "Backlog":
-            # Backlog: issues with no sprint assigned, all active statuses
-            jql_bl = (
-                'project = LISA AND sprint is EMPTY '
-                'AND issuetype NOT IN (Epic, Subtarea) '
-                'AND status NOT IN ("Finalizado", "Abandonado") '
-                'ORDER BY created ASC'
-            )
+            # Use Agile board backlog endpoint — matches exactly what Jira shows
             auth        = (JIRA_EMAIL, JIRA_TOKEN)
-            url         = f"{JIRA_BASE}/rest/api/3/search/jql"
-            req_headers = {"Accept": "application/json", "Content-Type": "application/json"}
-            issues, next_token = [], None
+            headers_get = {"Accept": "application/json"}
+
+            # Get board id for LISA
+            r = requests.get(
+                f"{JIRA_BASE}/rest/agile/1.0/board",
+                auth=auth, headers=headers_get,
+                params={"projectKeyOrId": "LISA"}, timeout=15
+            )
+            r.raise_for_status()
+            boards = r.json().get("values", [])
+            board_id = boards[0]["id"] if boards else None
+            if not board_id:
+                return jsonify({"error": "Board not found"}), 500
+
+            # Fetch backlog issues from board
+            backlog_url = f"{JIRA_BASE}/rest/agile/1.0/board/{board_id}/backlog"
+            raw_issues, start_at = [], 0
             while True:
-                payload = {"jql": jql_bl, "fields": FIELDS.split(","), "maxResults": 100}
-                if next_token:
-                    payload["nextPageToken"] = next_token
-                r = requests.post(url, auth=auth, headers=req_headers, json=payload, timeout=30)
+                r = requests.get(
+                    backlog_url, auth=auth, headers=headers_get,
+                    params={
+                        "startAt": start_at,
+                        "maxResults": 100,
+                        "jql": f'issuetype NOT IN (Epic, Subtarea) AND status NOT IN ("Finalizado", "Abandonado")',
+                        "fields": FIELDS,
+                    }, timeout=30
+                )
                 r.raise_for_status()
                 data  = r.json()
                 batch = data.get("issues", [])
-                issues.extend(batch)
-                next_token = data.get("nextPageToken")
-                if not next_token or not batch:
+                raw_issues.extend(batch)
+                if len(batch) < 100:
                     break
-            # Transform and filter
+                start_at += len(batch)
+
             result = []
-            for issue in issues:
+            for issue in raw_issues:
                 item, parent_type, principal, assignee = transform(issue, "")
                 if parent_type and parent_type != "Epic": continue
                 if principal.startswith("OPSADMON"): continue
                 if assignee in EXCL_ASSIGNEES: continue
                 del item["parent_type"]
                 result.append(item)
+
             return jsonify({
                 "sprint_start":   "",
                 "sprint_end":     "",
